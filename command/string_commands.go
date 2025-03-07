@@ -8,6 +8,15 @@ import (
 	"github.com/tidwall/resp"
 )
 
+const (
+	commandSet   = "SET"
+	commandGet   = "GET"
+	commandDel   = "DEL"
+	commandExist = "EXIST"
+	commandIncr  = "INCR"
+	commandDecr  = "DECR"
+)
+
 type SetCommand struct {
 	Key string
 	Val string

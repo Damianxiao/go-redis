@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"reflect"
+	"strings"
 )
 
 const (
@@ -79,7 +80,7 @@ func (s *Server) loop() {
 }
 
 func (s *Server) set(key, val string, ex string) error {
-	err := repo.KvMemory.Set(key, val, ex)
+	err := repo.KvString.Set(key, val, ex)
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,7 @@ func (s *Server) set(key, val string, ex string) error {
 }
 
 func (s *Server) get(key string) ([]byte, error) {
-	bytes, err := repo.KvMemory.Get(key)
+	bytes, err := repo.KvString.Get(key)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +97,7 @@ func (s *Server) get(key string) ([]byte, error) {
 }
 
 func (s *Server) del(key string) error {
-	err := repo.KvMemory.Delete(key)
+	err := repo.KvString.Delete(key)
 	if err != nil {
 		return err
 	}
@@ -104,7 +105,7 @@ func (s *Server) del(key string) error {
 }
 
 func (s *Server) exist(key string) (bool, error) {
-	ok, err := repo.KvMemory.Exist(key)
+	ok, err := repo.KvString.Exist(key)
 	if err != nil {
 		return ok, err
 	}
@@ -112,7 +113,7 @@ func (s *Server) exist(key string) (bool, error) {
 }
 
 func (s *Server) incr(key, amount string) error {
-	err := repo.KvMemory.Incr(key, amount)
+	err := repo.KvString.Incr(key, amount)
 	if err != nil {
 		return err
 	}
@@ -120,22 +121,64 @@ func (s *Server) incr(key, amount string) error {
 }
 
 func (s *Server) decr(key, amount string) error {
-	err := repo.KvMemory.Decr(key, amount)
+	err := repo.KvString.Decr(key, amount)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+func (s *Server) push(t, key, value string) {
+	switch t {
+	case "LPUSH":
+		repo.KvList.Lpush(key, value)
+	case "RPUSH":
+		repo.KvList.Rpush(key, value)
+	}
+}
+
+func (s *Server) lrange(key, start, end string) ([]string, error) {
+	res, err := repo.KvList.Lrange(key, start, end)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 func (s *Server) commandHandlers() map[reflect.Type]func(Message, command.Command) error {
 	return map[reflect.Type]func(Message, command.Command) error{
-		reflect.TypeOf(command.SetCommand{}):   s.executeSetCommand,
-		reflect.TypeOf(command.GetCommand{}):   s.executeGetCommand,
-		reflect.TypeOf(command.DelCommand{}):   s.executeDelCommand,
-		reflect.TypeOf(command.ExistCommand{}): s.executeExistCommand,
-		reflect.TypeOf(command.IncrCommand{}):  s.executeIncrCommand,
-		reflect.TypeOf(command.DecrCommand{}):  s.executeDecrCommand,
+		reflect.TypeOf(command.SetCommand{}):    s.executeSetCommand,
+		reflect.TypeOf(command.GetCommand{}):    s.executeGetCommand,
+		reflect.TypeOf(command.DelCommand{}):    s.executeDelCommand,
+		reflect.TypeOf(command.ExistCommand{}):  s.executeExistCommand,
+		reflect.TypeOf(command.IncrCommand{}):   s.executeIncrCommand,
+		reflect.TypeOf(command.DecrCommand{}):   s.executeDecrCommand,
+		reflect.TypeOf(command.PushCommand{}):   s.executePushCommand,
+		reflect.TypeOf(command.LrangeCommand{}): s.executeLrangeCommand,
 	}
+}
+
+func (s *Server) executeLrangeCommand(message Message, c command.Command) error {
+	cmd := c.(command.LrangeCommand)
+	res, err := s.lrange(cmd.Key, cmd.Start, cmd.End)
+	if err != nil {
+		slog.Error("lrange err", "err", err)
+		s.handleErr(message, err)
+		return err
+	}
+	data := strings.Join(res, " ")
+	respClient(message.Conn, []byte(data), "data")
+	slog.Info("range list", "list:", data)
+	return nil
+}
+
+func (s *Server) executePushCommand(message Message, c command.Command) error {
+	cmd := c.(command.PushCommand)
+	s.push(cmd.T, cmd.Key, cmd.Value)
+	s.handleSuccess(message, []byte(OK))
+	slog.Info("PUSH command executed", "push type", cmd.T, "key", cmd.Key, "value", cmd.Value)
+	// slog.Info("now memory list", "list", repo.KvList.KvList["user"])
+	return nil
 }
 
 func (s *Server) executeSetCommand(message Message, c command.Command) error {

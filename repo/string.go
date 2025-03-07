@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var KvMemory KV
+var KvString KV
 
 type KV struct {
 	kv       map[string][]byte
@@ -24,7 +24,7 @@ func NewKV() KV {
 }
 
 func InitKV() {
-	KvMemory = NewKV()
+	KvString = NewKV()
 }
 
 func (kv KV) Set(key, val string, ex ...string) error {

@@ -21,7 +21,7 @@ func main() {
 	// 	}
 	// }
 	// time.Sleep(time.Second)
-	// fmt.Println(repo.KvMemory)
+	// fmt.Println(repo.KvString)
 	// client.Get(context.Background(), "user")
 	select {}
 }
@@ -29,4 +29,5 @@ func main() {
 func init() {
 	// inititialize memory data
 	repo.InitKV()
+	repo.InitKVList()
 }

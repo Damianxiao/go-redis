@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 )
 
@@ -22,8 +23,8 @@ func MsOrS(t, time string) (string, error) {
 }
 
 func IsNumeric(s string) bool {
-	_, err := strconv.Atoi(s)
-	return err == nil
+	re := regexp.MustCompile(`^-?\d+$`) // 匹配可选的负号 + 数字
+	return re.MatchString(s)
 }
 
 func Btoi(b bool) string {

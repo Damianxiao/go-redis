@@ -9,22 +9,16 @@ import (
 	"github.com/tidwall/resp"
 )
 
-const (
-	commandSet   = "SET"
-	commandGet   = "GET"
-	commandDel   = "DEL"
-	commandExist = "EXIST"
-	commandIncr  = "INCR"
-	commandDecr  = "DECR"
-)
-
 var commandsHandlers = map[string]func([]resp.Value) (Command, error){
-	commandSet:   SetCommandHandler,
-	commandGet:   GetCommandHandler,
-	commandDel:   DelCommandHandler,
-	commandExist: ExistCommandHandler,
-	commandIncr:  IncrCommandHandler,
-	commandDecr:  DecrCommandHandler,
+	commandSet:    SetCommandHandler,
+	commandGet:    GetCommandHandler,
+	commandDel:    DelCommandHandler,
+	commandExist:  ExistCommandHandler,
+	commandIncr:   IncrCommandHandler,
+	commandDecr:   DecrCommandHandler,
+	commandLpush:  PushCommandHandler,
+	commandRpush:  PushCommandHandler,
+	commandLRange: LrangeCommandHandler,
 }
 
 type Command interface {
