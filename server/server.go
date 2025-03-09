@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -128,6 +129,31 @@ func (s *Server) decr(key, amount string) error {
 	return nil
 }
 
+func (s *Server) zadd(key, member, score string) error {
+	flt, err := strconv.ParseFloat(score, 64)
+	if err != nil {
+		return err
+	}
+	err = repo.MemoryZset.Insert(key, member, flt)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Server) zrank(key, member string) (int, error) {
+	err, rank := repo.MemoryZset.Zrank(key, member)
+	if err != nil {
+		return rank, err
+	}
+	return rank, err
+}
+
+func (s *Server) zscore(key, member string) (float64, error) {
+	flt := repo.MemoryZset.GetScore(key, member)
+	return flt, nil
+}
+
 func (s *Server) push(t, key, value string) {
 	switch t {
 	case "LPUSH":
@@ -155,7 +181,52 @@ func (s *Server) commandHandlers() map[reflect.Type]func(Message, command.Comman
 		reflect.TypeOf(command.DecrCommand{}):   s.executeDecrCommand,
 		reflect.TypeOf(command.PushCommand{}):   s.executePushCommand,
 		reflect.TypeOf(command.LrangeCommand{}): s.executeLrangeCommand,
+		reflect.TypeOf(command.ZaddCommand{}):   s.executeZaddCommand,
+		reflect.TypeOf(command.ZscoreCommand{}): s.executeZscoreCommand,
+		reflect.TypeOf(command.ZrankCommand{}):  s.executeZrankCommand,
 	}
+}
+
+func (s *Server) executeZaddCommand(message Message, c command.Command) error {
+	cmd := c.(command.ZaddCommand)
+	err := s.zadd(cmd.Key, cmd.Member, cmd.Score)
+	if err != nil {
+		slog.Error("zset add err", "err", err)
+		s.handleErr(message, err)
+		return err
+	}
+	s.handleSuccess(message, []byte(OK))
+
+	slog.Info("range list", "list:", cmd.Member, "score:", cmd.Score)
+	return nil
+}
+
+func (s *Server) executeZrankCommand(message Message, c command.Command) error {
+	cmd := c.(command.ZrankCommand)
+	rank, err := s.zrank(cmd.Key, cmd.Member)
+	str := strconv.Itoa(rank)
+	if err != nil {
+		slog.Error("zset rank err", "err", err)
+		s.handleErr(message, err)
+		return err
+	}
+	respClient(message.Conn, []byte((str)), "data")
+	slog.Info("zset rank ", "zset:", cmd.Key, "member:", cmd.Member, "rank:", rank)
+	return nil
+}
+
+func (s *Server) executeZscoreCommand(message Message, c command.Command) error {
+	cmd := c.(command.ZscoreCommand)
+	flt, err := s.zscore(cmd.Key, cmd.Member)
+	if err != nil {
+		slog.Error("zset getscore err", "err", err)
+		s.handleErr(message, err)
+		return err
+	}
+	str := strconv.FormatFloat(flt, 'f', 2, 64)
+	respClient(message.Conn, []byte(str), "data")
+	slog.Info("zset get score", "zset:", cmd.Key, "member:", cmd.Member)
+	return nil
 }
 
 func (s *Server) executeLrangeCommand(message Message, c command.Command) error {

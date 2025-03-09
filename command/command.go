@@ -19,6 +19,9 @@ var commandsHandlers = map[string]func([]resp.Value) (Command, error){
 	commandLpush:  PushCommandHandler,
 	commandRpush:  PushCommandHandler,
 	commandLRange: LrangeCommandHandler,
+	commandZadd:   ZaddCommandHandler,
+	commandZscore: ZscoreCommandHandler,
+	commandZrank:  ZrankCommandHandler,
 }
 
 type Command interface {

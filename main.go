@@ -30,4 +30,5 @@ func init() {
 	// inititialize memory data
 	repo.InitKV()
 	repo.InitKVList()
+	repo.InitKvZset()
 }
